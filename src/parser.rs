@@ -2,11 +2,12 @@ use anyhow::Result;
 use lazy_static::lazy_static;
 use regex::Regex;
 
+#[derive(Default)]
 pub struct MarkdownParser {}
 
 impl MarkdownParser {
     pub fn new() -> Self {
-        Self {}
+        Self::default()
     }
 
     pub fn parse(&self, content: &str) -> Result<String> {
@@ -137,7 +138,7 @@ impl MarkdownParser {
     }
 
     fn parse_heading(&self, line: &str, level: usize) -> String {
-        let content = line.trim_start_matches(|c| c == '#').trim();
+        let content = line.trim_start_matches('#').trim();
         format!("<h{}>{}</h{}>\n", level, content, level)
     }
 
@@ -161,41 +162,44 @@ impl MarkdownParser {
             let is_list_item = if ordered {
                 line.contains(". ")
             } else {
-                line.contains("- ") || line.contains("* ")
+                ['-', '*'].iter().any(|&c| line.contains(c))
             };
 
             if !is_list_item {
                 break;
             }
 
-            if indent > current_indent {
-                let new_list_type = if ordered { "ol" } else { "ul" };
-                result.push_str(&format!("<{}>\n", new_list_type));
-                list_stack.push((new_list_type, indent));
-                current_indent = indent;
-            } else if indent < current_indent {
-                while let Some((list_type, level)) = list_stack.last() {
-                    if *level > indent {
-                        result.push_str(&format!("</{}>\n", list_type));
-                        list_stack.pop();
-                        if let Some((_, prev_level)) = list_stack.last() {
-                            current_indent = *prev_level;
+            match indent.cmp(&current_indent) {
+                std::cmp::Ordering::Greater => {
+                    let new_list_type = if ordered { "ol" } else { "ul" };
+                    result.push_str(&format!("<{}>\n", new_list_type));
+                    list_stack.push((new_list_type, indent));
+                    current_indent = indent;
+                }
+                std::cmp::Ordering::Less => {
+                    while let Some((list_type, level)) = list_stack.last() {
+                        if *level > indent {
+                            result.push_str(&format!("</{}>\n", list_type));
+                            list_stack.pop();
+                            if let Some((_, prev_level)) = list_stack.last() {
+                                current_indent = *prev_level;
+                            } else {
+                                current_indent = 0;
+                            }
                         } else {
-                            current_indent = 0;
+                            break;
                         }
-                    } else {
-                        break;
                     }
                 }
+                std::cmp::Ordering::Equal => {}
             }
 
             let content = if ordered {
-                line.splitn(2, ". ").nth(1).unwrap_or("").trim()
+                line.split_once(". ").map(|(_, content)| content.trim()).unwrap_or("")
             } else {
-                line.splitn(2, |c| c == '-' || c == '*')
-                    .nth(1)
+                line.split_once(&['-', '*'][..])
+                    .map(|(_, content)| content.trim())
                     .unwrap_or("")
-                    .trim()
             };
 
             result.push_str(&format!("<li>{}</li>\n", self.parse_inline(content)));
@@ -352,7 +356,7 @@ impl MarkdownParser {
                     in_math_block = true;
                 } else {
                     result.push_str(r#"<div class="math-block">$$"#);
-                    result.push_str(&math_content.trim());
+                    result.push_str(math_content.trim());
                     result.push_str("$$</div>\n");
                     consumed += 1;
                     break;
