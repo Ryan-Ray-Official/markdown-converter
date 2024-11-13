@@ -16,7 +16,7 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -63,7 +63,7 @@ jobs:
             zip_name: markdown_converter-macos-amd64.zip
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -99,29 +99,34 @@ jobs:
         run: cd release && zip -r ../${{ matrix.zip_name }} ./*
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset_name }}
           path: ${{ matrix.zip_name }}
+          compression-level: 0  # Already compressed
 
   release:
     name: Create Release
     needs: [test, build]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
 
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
 
       - name: Create Release
-        id: create_release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            markdown_converter-linux-amd64/markdown_converter-linux-amd64.zip
-            markdown_converter-windows-amd64.exe/markdown_converter-windows-amd64.zip
-            markdown_converter-macos-amd64/markdown_converter-macos-amd64.zip
+            artifacts/markdown_converter-linux-amd64.zip
+            artifacts/markdown_converter-windows-amd64.zip
+            artifacts/markdown_converter-macos-amd64.zip
           draft: false
           prerelease: false
           generate_release_notes: true
