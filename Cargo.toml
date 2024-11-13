@@ -2,6 +2,10 @@
 name = "markdown_converter"
 version = "0.1.0"
 edition = "2021"
+authors = ["RedlineDev"]
+description = "A powerful Markdown to HTML converter"
+license = "MIT"
+repository = "https://github.com/Ryan-Ray-Official/markdown-converter"
 
 [dependencies]
 clap = { version = "4.5.1", features = ["derive"] }
@@ -18,3 +22,14 @@ html-escape = "0.2.13"
 dialoguer = "0.11.0"
 console = "0.15.8"
 notify = "6.1.1"
+
+[dev-dependencies]
+pretty_assertions = "1.4.0"
+test-case = "3.3.1"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = 'abort'
+strip = true
