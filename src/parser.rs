@@ -195,7 +195,9 @@ impl MarkdownParser {
             }
 
             let content = if ordered {
-                line.split_once(". ").map(|(_, content)| content.trim()).unwrap_or("")
+                line.split_once(". ")
+                    .map(|(_, content)| content.trim())
+                    .unwrap_or("")
             } else {
                 line.split_once(&['-', '*'][..])
                     .map(|(_, content)| content.trim())
