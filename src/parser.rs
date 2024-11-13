@@ -142,13 +142,17 @@ impl MarkdownParser {
         let mut current_indent = 0;
         let mut list_stack = vec![];
 
+        let list_type = if ordered { "ol" } else { "ul" };
+        result.push_str(&format!("<{}>\n", list_type));
+        list_stack.push((list_type, 0));
+
         while consumed < lines.len() {
             let line = lines[consumed].trim_start();
             if line.is_empty() {
                 break;
             }
 
-            let indent = lines[consumed].len() - line.len();
+            let indent = (lines[consumed].len() - line.len()) / 2 * 2;
             let is_list_item = if ordered {
                 line.contains(". ")
             } else {
@@ -162,13 +166,21 @@ impl MarkdownParser {
             if indent > current_indent {
                 let new_list_type = if ordered { "ol" } else { "ul" };
                 result.push_str(&format!("<{}>\n", new_list_type));
-                list_stack.push(new_list_type);
+                list_stack.push((new_list_type, indent));
                 current_indent = indent;
             } else if indent < current_indent {
-                while !list_stack.is_empty() && indent < current_indent {
-                    let list_type = list_stack.pop().unwrap();
-                    result.push_str(&format!("</{}>\n", list_type));
-                    current_indent -= 2;
+                while let Some((list_type, level)) = list_stack.last() {
+                    if *level > indent {
+                        result.push_str(&format!("</{}>\n", list_type));
+                        list_stack.pop();
+                        if let Some((_, prev_level)) = list_stack.last() {
+                            current_indent = *prev_level;
+                        } else {
+                            current_indent = 0;
+                        }
+                    } else {
+                        break;
+                    }
                 }
             }
 
@@ -182,7 +194,7 @@ impl MarkdownParser {
             consumed += 1;
         }
 
-        while let Some(list_type) = list_stack.pop() {
+        while let Some((list_type, _)) = list_stack.pop() {
             result.push_str(&format!("</{}>\n", list_type));
         }
 
@@ -193,14 +205,13 @@ impl MarkdownParser {
         let mut result = String::new();
         let mut consumed = 0;
         let mut in_code_block = false;
-        let mut current_language = String::new();
 
         for line in lines {
             if line.starts_with("```") {
                 if !in_code_block {
-                    current_language = line.trim_start_matches('`').trim().to_string();
-                    if !current_language.is_empty() {
-                        result.push_str(&format!(r#"<pre><code class="language-{}">"#, current_language));
+                    let language = line.trim_start_matches('`').trim().to_string();
+                    if !language.is_empty() {
+                        result.push_str(&format!(r#"<pre><code class="language-{}">"#, language));
                     } else {
                         result.push_str(r#"<pre><code>"#);
                     }
@@ -349,4 +360,80 @@ enum Element {
     Blockquote,
     HorizontalRule,
     MathBlock,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_basic_markdown_parsing() {
+        let parser = MarkdownParser::new();
+        let input = "# Test Heading\n\nThis is a paragraph.";
+        let result = parser.parse(input).unwrap();
+        assert!(result.contains("<h1>Test Heading</h1>"));
+        assert!(result.contains("<p>This is a paragraph.</p>"));
+    }
+
+    #[test]
+    fn test_inline_formatting() {
+        let parser = MarkdownParser::new();
+        let input = "**Bold** and *italic* text";
+        let result = parser.parse(input).unwrap();
+        assert!(result.contains("<strong>Bold</strong>"));
+        assert!(result.contains("<em>italic</em>"));
+    }
+
+    #[test]
+    fn test_lists() {
+        let parser = MarkdownParser::new();
+
+
+        let input = "- Item 1\n- Item 2\n  - Nested item\n- Item 3";
+        let result = parser.parse(input).unwrap();
+        assert!(result.contains("<ul>"));
+        assert!(result.contains("<li>Item 1</li>"));
+        assert!(result.contains("<li>Nested item</li>"));
+
+
+        let input = "1. First\n2. Second\n   1. Nested\n3. Third";
+        let result = parser.parse(input).unwrap();
+        assert!(result.contains("<ol>"));
+        assert!(result.contains("<li>First</li>"));
+        assert!(result.contains("<li>Nested</li>"));
+
+
+        let input = "- Item 1\n  1. Nested ordered\n  2. Another ordered\n- Item 2";
+        let result = parser.parse(input).unwrap();
+        assert!(result.contains("<ul>"));
+        assert!(result.contains("<ol>"));
+        assert!(result.contains("<li>Nested ordered</li>"));
+    }
+
+    #[test]
+    fn test_code_blocks() {
+        let parser = MarkdownParser::new();
+        let input = "```rust\nfn main() {}\n```";
+        let result = parser.parse(input).unwrap();
+        assert!(result.contains(r#"<pre><code class="language-rust">"#));
+        assert!(result.contains("fn main()"));
+    }
+
+    #[test]
+    fn test_blockquotes() {
+        let parser = MarkdownParser::new();
+        let input = "> This is a quote\n> Second line";
+        let result = parser.parse(input).unwrap();
+        assert!(result.contains("<blockquote>"));
+        assert!(result.contains("This is a quote"));
+    }
+
+    #[test]
+    fn test_math() {
+        let parser = MarkdownParser::new();
+        let input = "$$\nE = mc^2\n$$";
+        let result = parser.parse(input).unwrap();
+        assert!(result.contains(r#"<div class="math-block">"#));
+        assert!(result.contains("E = mc^2"));
+    }
 }

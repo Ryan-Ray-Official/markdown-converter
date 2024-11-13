@@ -1,8 +1,4 @@
-mod converter;
-mod error;
-mod parser;
-mod utils;
-
+use markdown_converter::{converter, utils};
 use anyhow::Result;
 use colored::*;
 use console::Term;
@@ -57,6 +53,14 @@ fn gather_options(theme: &ColorfulTheme) -> Result<ConversionOptions> {
 
     let input_path: String = Input::with_theme(theme)
         .with_prompt("Enter input markdown file path")
+        .validate_with(|input: &String| -> Result<(), &str> {
+            let path = PathBuf::from(input);
+            if !utils::is_markdown_file(&path) {
+                Err("File must be a markdown file (.md)")
+            } else {
+                Ok(())
+            }
+        })
         .interact_text()?;
 
     let output_path: String = Input::with_theme(theme)
@@ -135,4 +139,29 @@ fn print_banner() {
     println!("{}", "║         Markdown Converter CLI         ║".bright_blue());
     println!("{}", "║         Version 0.1.0                 ║".bright_blue());
     println!("{}", "╚════════════════════════════════════════╝".bright_blue());
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_gather_options() {
+
+    }
+
+    #[test]
+    fn test_conversion_options() {
+        let options = ConversionOptions {
+            input_path: PathBuf::from("test.md"),
+            output_path: PathBuf::from("test.html"),
+            css_path: None,
+            syntax_highlight: true,
+            generate_toc: false,
+            minify: false,
+            watch: false,
+        };
+        assert!(!options.watch);
+        assert!(options.syntax_highlight);
+    }
 }

@@ -230,3 +230,106 @@ impl MarkdownConverter {
             .collect::<String>()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs::File;
+    use std::io::Write;
+    use std::env::temp_dir;
+
+    fn create_temp_file(content: &str) -> PathBuf {
+        let temp_path = temp_dir().join("test.md");
+        let mut file = File::create(&temp_path).unwrap();
+        writeln!(file, "{}", content).unwrap();
+        temp_path
+    }
+
+    fn cleanup_temp_file(path: &PathBuf) {
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn test_converter_initialization() {
+        let temp_path = create_temp_file("# Test");
+
+        let converter = MarkdownConverter::new(
+            temp_path.clone(),
+            None,
+            None,
+            true,
+            false,
+            false,
+        ).unwrap();
+
+        assert_eq!(converter.input_path, temp_path);
+        assert_eq!(converter.syntax_highlight, true);
+        assert_eq!(converter.generate_toc, false);
+        assert_eq!(converter.minify, false);
+
+        cleanup_temp_file(&temp_path);
+    }
+
+    #[test]
+    fn test_output_path_generation() {
+        let temp_path = create_temp_file("# Test");
+        let mut expected_output = temp_path.clone();
+        expected_output.set_extension("html");
+
+        let converter = MarkdownConverter::new(
+            temp_path.clone(),
+            None,
+            None,
+            false,
+            false,
+            false,
+        ).unwrap();
+
+        assert_eq!(converter.output_path, expected_output);
+        cleanup_temp_file(&temp_path);
+    }
+
+    #[test]
+    fn test_minification() {
+        let temp_path = create_temp_file("# Test\n\nSome content");
+
+        let converter = MarkdownConverter::new(
+            temp_path.clone(),
+            None,
+            None,
+            false,
+            false,
+            true,
+        ).unwrap();
+
+        let html = "<div>\n    <p>Test</p>\n</div>";
+        let minified = converter.minify_html(html);
+        assert!(!minified.contains('\n'));
+        assert!(!minified.contains("    "));
+
+        cleanup_temp_file(&temp_path);
+    }
+
+    #[test]
+    fn test_css_handling() {
+        let temp_path = create_temp_file("# Test");
+        let converter = MarkdownConverter::new(
+            temp_path.clone(),
+            None,
+            None,
+            false,
+            false,
+            false,
+        ).unwrap();
+
+        let html = "<p>Test</p>";
+        let result = converter.add_css(html).unwrap();
+
+        assert!(result.contains("<!DOCTYPE html>"));
+        assert!(result.contains("<style>"));
+        assert!(result.contains("</style>"));
+        assert!(result.contains(html));
+
+        cleanup_temp_file(&temp_path);
+    }
+}

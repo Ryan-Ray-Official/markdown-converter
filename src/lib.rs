@@ -1,62 +1,78 @@
+
+
+
+
+pub mod converter;
+pub mod error;
+
+
+
+
+
+
+
+
+
+
+
+
+
+pub mod parser;
+
+
+pub mod utils;
+
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::parser::MarkdownParser;
-    use std::path::PathBuf;
+
+    const EXAMPLE_MD: &str = include_str!("../example.md");
 
     #[test]
-    fn test_basic_markdown_parsing() {
+    fn test_example_markdown() {
         let parser = MarkdownParser::new();
-        let input = "# Test Heading\n\nThis is a paragraph.";
-        let result = parser.parse(input).unwrap();
-        assert!(result.contains("<h1>Test Heading</h1>"));
-        assert!(result.contains("<p>This is a paragraph.</p>"));
-    }
+        let result = parser.parse(EXAMPLE_MD).unwrap();
 
-    #[test]
-    fn test_inline_formatting() {
-        let parser = MarkdownParser::new();
-        let input = "**Bold** and *italic* text";
-        let result = parser.parse(input).unwrap();
-        assert!(result.contains("<strong>Bold</strong>"));
-        assert!(result.contains("<em>italic</em>"));
-    }
 
-    #[test]
-    fn test_lists() {
-        let parser = MarkdownParser::new();
-        let input = "- Item 1\n- Item 2\n\n1. First\n2. Second";
-        let result = parser.parse(input).unwrap();
+        assert!(result.contains("<h1>Markdown Test File</h1>"));
+        assert!(result.contains("<h2>Text Formatting</h2>"));
+        assert!(result.contains("<h6>Level 6 Heading</h6>"));
+
+
+        assert!(result.contains("<strong>Bold text</strong>"));
+        assert!(result.contains("<em>Italic text</em>"));
+        assert!(result.contains("<del>Strikethrough text</del>"));
+        assert!(result.contains("<code>Inline code</code>"));
+
+
         assert!(result.contains("<ul>"));
         assert!(result.contains("<ol>"));
-        assert!(result.contains("<li>Item 1</li>"));
-        assert!(result.contains("<li>First</li>"));
-    }
+        assert!(result.contains("<li>Subitem 1.1</li>"));
+        assert!(result.contains("<li>First item</li>"));
 
-    #[test]
-    fn test_code_blocks() {
-        let parser = MarkdownParser::new();
-        let input = "```rust\nfn main() {}\n```";
-        let result = parser.parse(input).unwrap();
-        assert!(result.contains(r#"<pre><code class="language-rust">"#));
-        assert!(result.contains("fn main()"));
-    }
 
-    #[test]
-    fn test_blockquotes() {
-        let parser = MarkdownParser::new();
-        let input = "> This is a quote\n> Second line";
-        let result = parser.parse(input).unwrap();
+        assert!(result.contains(r#"<a href="https://www.rust-lang.org/""#));
+        assert!(result.contains("<img src="));
+
+
+        assert!(result.contains("<table>"));
+        assert!(result.contains("<th>Syntax</th>"));
+        assert!(result.contains("<td>Text</td>"));
+
+
         assert!(result.contains("<blockquote>"));
-        assert!(result.contains("This is a quote"));
-    }
+        assert!(result.contains("This is a blockquote"));
 
-    #[test]
-    fn test_math() {
-        let parser = MarkdownParser::new();
-        let input = "$$\nE = mc^2\n$$";
-        let result = parser.parse(input).unwrap();
+
+        assert!(result.contains(r#"<pre><code class="language-rust">"#));
+        assert!(result.contains("println!("));
+
+
+        assert!(result.contains("<hr>"));
+
+
         assert!(result.contains(r#"<div class="math-block">"#));
-        assert!(result.contains("E = mc^2"));
+        assert!(result.contains("\\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}"));
+        assert!(result.contains("\\nabla \\times \\vec{\\mathbf{B}}"));
     }
 }
