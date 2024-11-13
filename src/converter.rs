@@ -3,16 +3,16 @@ use crate::parser::MarkdownParser;
 use anyhow::Result;
 use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
-use log::{info, error};
+use lazy_static::lazy_static;
+use log::{error, info};
+use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
+use regex::Regex;
 use std::fs;
 use std::path::PathBuf;
+use std::sync::mpsc::channel;
 use syntect::highlighting::ThemeSet;
 use syntect::html::highlighted_html_for_string;
 use syntect::parsing::SyntaxSet;
-use regex::Regex;
-use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
-use std::sync::mpsc::channel;
-use lazy_static::lazy_static;
 
 pub struct MarkdownConverter {
     input_path: PathBuf,
@@ -57,8 +57,8 @@ impl MarkdownConverter {
         );
         pb.set_message("Converting markdown to HTML...");
 
-        let content = fs::read_to_string(&self.input_path)
-            .map_err(ConverterError::InputFileError)?;
+        let content =
+            fs::read_to_string(&self.input_path).map_err(ConverterError::InputFileError)?;
 
         let parser = MarkdownParser::new();
         let mut html = parser.parse(&content)?;
@@ -115,7 +115,8 @@ impl MarkdownConverter {
         let ts = ThemeSet::load_defaults();
         let theme = &ts.themes["base16-ocean.dark"];
 
-        let code_block_regex = Regex::new(r#"<pre><code class="language-(\w+)">([\s\S]*?)</code></pre>"#).unwrap();
+        let code_block_regex =
+            Regex::new(r#"<pre><code class="language-(\w+)">([\s\S]*?)</code></pre>"#).unwrap();
 
         let html = code_block_regex.replace_all(html, |caps: &regex::Captures| {
             let lang = &caps[1];
@@ -139,7 +140,8 @@ impl MarkdownConverter {
             static ref HEADING_RE: Regex = Regex::new(r"<h([1-6])>(.*?)</h[1-6]>").unwrap();
         }
 
-        let mut toc = String::from("<div class=\"table-of-contents\">\n<h2>Table of Contents</h2>\n<ul>\n");
+        let mut toc =
+            String::from("<div class=\"table-of-contents\">\n<h2>Table of Contents</h2>\n<ul>\n");
         let mut current_level = 1;
 
         for cap in HEADING_RE.captures_iter(html) {
@@ -178,9 +180,8 @@ impl MarkdownConverter {
 
     fn add_css(&self, html: &str) -> Result<String> {
         let css = if let Some(css_path) = &self.css_path {
-            fs::read_to_string(css_path).map_err(|e| {
-                ConverterError::CssError(format!("Failed to read CSS file: {}", e))
-            })?
+            fs::read_to_string(css_path)
+                .map_err(|e| ConverterError::CssError(format!("Failed to read CSS file: {}", e)))?
         } else {
             include_str!("../assets/default.css").to_string()
         };
@@ -234,9 +235,9 @@ impl MarkdownConverter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::env::temp_dir;
     use std::fs::File;
     use std::io::Write;
-    use std::env::temp_dir;
 
     fn create_temp_file(content: &str) -> PathBuf {
         let temp_path = temp_dir().join("test.md");
@@ -253,14 +254,8 @@ mod tests {
     fn test_converter_initialization() {
         let temp_path = create_temp_file("# Test");
 
-        let converter = MarkdownConverter::new(
-            temp_path.clone(),
-            None,
-            None,
-            true,
-            false,
-            false,
-        ).unwrap();
+        let converter =
+            MarkdownConverter::new(temp_path.clone(), None, None, true, false, false).unwrap();
 
         assert_eq!(converter.input_path, temp_path);
         assert_eq!(converter.syntax_highlight, true);
@@ -276,14 +271,8 @@ mod tests {
         let mut expected_output = temp_path.clone();
         expected_output.set_extension("html");
 
-        let converter = MarkdownConverter::new(
-            temp_path.clone(),
-            None,
-            None,
-            false,
-            false,
-            false,
-        ).unwrap();
+        let converter =
+            MarkdownConverter::new(temp_path.clone(), None, None, false, false, false).unwrap();
 
         assert_eq!(converter.output_path, expected_output);
         cleanup_temp_file(&temp_path);
@@ -293,14 +282,8 @@ mod tests {
     fn test_minification() {
         let temp_path = create_temp_file("# Test\n\nSome content");
 
-        let converter = MarkdownConverter::new(
-            temp_path.clone(),
-            None,
-            None,
-            false,
-            false,
-            true,
-        ).unwrap();
+        let converter =
+            MarkdownConverter::new(temp_path.clone(), None, None, false, false, true).unwrap();
 
         let html = "<div>\n    <p>Test</p>\n</div>";
         let minified = converter.minify_html(html);
@@ -313,14 +296,8 @@ mod tests {
     #[test]
     fn test_css_handling() {
         let temp_path = create_temp_file("# Test");
-        let converter = MarkdownConverter::new(
-            temp_path.clone(),
-            None,
-            None,
-            false,
-            false,
-            false,
-        ).unwrap();
+        let converter =
+            MarkdownConverter::new(temp_path.clone(), None, None, false, false, false).unwrap();
 
         let html = "<p>Test</p>";
         let result = converter.add_css(html).unwrap();

@@ -2,8 +2,7 @@ use anyhow::Result;
 use lazy_static::lazy_static;
 use regex::Regex;
 
-pub struct MarkdownParser {
-}
+pub struct MarkdownParser {}
 
 impl MarkdownParser {
     pub fn new() -> Self {
@@ -21,7 +20,10 @@ impl MarkdownParser {
             let line = lines[i].trim();
 
             if line.is_empty() && in_blockquote {
-                html.push_str(&format!("<blockquote>{}</blockquote>\n", self.parse_inline(&blockquote_content)));
+                html.push_str(&format!(
+                    "<blockquote>{}</blockquote>\n",
+                    self.parse_inline(&blockquote_content)
+                ));
                 blockquote_content.clear();
                 in_blockquote = false;
                 i += 1;
@@ -78,7 +80,10 @@ impl MarkdownParser {
         }
 
         if in_blockquote && !blockquote_content.is_empty() {
-            html.push_str(&format!("<blockquote>{}</blockquote>\n", self.parse_inline(&blockquote_content)));
+            html.push_str(&format!(
+                "<blockquote>{}</blockquote>\n",
+                self.parse_inline(&blockquote_content)
+            ));
         }
 
         Ok(html)
@@ -187,7 +192,10 @@ impl MarkdownParser {
             let content = if ordered {
                 line.splitn(2, ". ").nth(1).unwrap_or("").trim()
             } else {
-                line.splitn(2, |c| c == '-' || c == '*').nth(1).unwrap_or("").trim()
+                line.splitn(2, |c| c == '-' || c == '*')
+                    .nth(1)
+                    .unwrap_or("")
+                    .trim()
             };
 
             result.push_str(&format!("<li>{}</li>\n", self.parse_inline(content)));
@@ -255,24 +263,36 @@ impl MarkdownParser {
 
         let mut result = text.to_string();
 
-        result = INLINE_MATH_RE.replace_all(&result, r#"<span class="math-inline">$$$1$$</span>"#).to_string();
+        result = INLINE_MATH_RE
+            .replace_all(&result, r#"<span class="math-inline">$$$1$$</span>"#)
+            .to_string();
 
-        result = IMAGE_RE.replace_all(&result, r#"<img src="$2" alt="$1">"#).to_string();
+        result = IMAGE_RE
+            .replace_all(&result, r#"<img src="$2" alt="$1">"#)
+            .to_string();
 
-        result = BOLD_RE.replace_all(&result, "<strong>$1$2</strong>").to_string();
+        result = BOLD_RE
+            .replace_all(&result, "<strong>$1$2</strong>")
+            .to_string();
         result = ITALIC_RE.replace_all(&result, "<em>$1$2</em>").to_string();
         result = CODE_RE.replace_all(&result, "<code>$1</code>").to_string();
-        result = LINK_RE.replace_all(&result, r#"<a href="$2">$1</a>"#).to_string();
-        result = STRIKETHROUGH_RE.replace_all(&result, "<del>$1</del>").to_string();
+        result = LINK_RE
+            .replace_all(&result, r#"<a href="$2">$1</a>"#)
+            .to_string();
+        result = STRIKETHROUGH_RE
+            .replace_all(&result, "<del>$1</del>")
+            .to_string();
 
-        result = TASK_LIST_RE.replace_all(&result, |caps: &regex::Captures| {
-            let checked = caps[1].contains('x');
-            format!(
-                r#"<input type="checkbox" disabled{}>{}"#,
-                if checked { " checked" } else { "" },
-                &caps[2]
-            )
-        }).to_string();
+        result = TASK_LIST_RE
+            .replace_all(&result, |caps: &regex::Captures| {
+                let checked = caps[1].contains('x');
+                format!(
+                    r#"<input type="checkbox" disabled{}>{}"#,
+                    if checked { " checked" } else { "" },
+                    &caps[2]
+                )
+            })
+            .to_string();
 
         result
     }
@@ -291,7 +311,8 @@ impl MarkdownParser {
             consumed += 1;
         }
 
-        if consumed < lines.len() && lines[consumed].contains('|') && lines[consumed].contains('-') {
+        if consumed < lines.len() && lines[consumed].contains('|') && lines[consumed].contains('-')
+        {
             consumed += 1;
         }
 
@@ -316,10 +337,7 @@ impl MarkdownParser {
     }
 
     fn split_table_row<'a>(&self, line: &'a str) -> Vec<&'a str> {
-        line.trim()
-            .trim_matches('|')
-            .split('|')
-            .collect()
+        line.trim().trim_matches('|').split('|').collect()
     }
 
     fn parse_math_block(&self, lines: &[&str]) -> (String, usize) {
@@ -388,20 +406,17 @@ mod tests {
     fn test_lists() {
         let parser = MarkdownParser::new();
 
-
         let input = "- Item 1\n- Item 2\n  - Nested item\n- Item 3";
         let result = parser.parse(input).unwrap();
         assert!(result.contains("<ul>"));
         assert!(result.contains("<li>Item 1</li>"));
         assert!(result.contains("<li>Nested item</li>"));
 
-
         let input = "1. First\n2. Second\n   1. Nested\n3. Third";
         let result = parser.parse(input).unwrap();
         assert!(result.contains("<ol>"));
         assert!(result.contains("<li>First</li>"));
         assert!(result.contains("<li>Nested</li>"));
-
 
         let input = "- Item 1\n  1. Nested ordered\n  2. Another ordered\n- Item 2";
         let result = parser.parse(input).unwrap();

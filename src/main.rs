@@ -1,9 +1,9 @@
-use markdown_converter::{converter, utils};
 use anyhow::Result;
 use colored::*;
 use console::Term;
 use dialoguer::{theme::ColorfulTheme, Confirm, Input, MultiSelect};
 use log::error;
+use markdown_converter::{converter, utils};
 use std::path::PathBuf;
 
 struct ConversionOptions {
@@ -96,7 +96,10 @@ fn gather_options(theme: &ColorfulTheme) -> Result<ConversionOptions> {
 
     let defaults = &[true, false, false, false];
 
-    println!("\n{}", "Select additional options (Space to select/unselect, Enter to confirm):".green());
+    println!(
+        "\n{}",
+        "Select additional options (Space to select/unselect, Enter to confirm):".green()
+    );
     let selections = MultiSelect::with_theme(theme)
         .items(options)
         .defaults(defaults)
@@ -135,10 +138,22 @@ fn gather_options(theme: &ColorfulTheme) -> Result<ConversionOptions> {
 }
 
 fn print_banner() {
-    println!("{}", "╔════════════════════════════════════════╗".bright_blue());
-    println!("{}", "║         Markdown Converter CLI         ║".bright_blue());
-    println!("{}", "║         Version 0.1.0                 ║".bright_blue());
-    println!("{}", "╚════════════════════════════════════════╝".bright_blue());
+    println!(
+        "{}",
+        "╔════════════════════════════════════════╗".bright_blue()
+    );
+    println!(
+        "{}",
+        "║         Markdown Converter CLI         ║".bright_blue()
+    );
+    println!(
+        "{}",
+        "║         Version 0.1.0                 ║".bright_blue()
+    );
+    println!(
+        "{}",
+        "╚════════════════════════════════════════╝".bright_blue()
+    );
 }
 
 #[cfg(test)]
@@ -146,9 +161,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_gather_options() {
-
-    }
+    fn test_gather_options() {}
 
     #[test]
     fn test_conversion_options() {
